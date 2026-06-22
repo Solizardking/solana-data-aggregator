@@ -3,6 +3,17 @@
 Collect and benchmark Solana on-chain metrics across multiple data providers.
 This project standardizes provider responses into typed models with unit and integration tests.
 
+## Backfill Requests 
+Please create a ticket in [issues](https://github.com/solana-foundation/solana-data-aggregator/issues). 
+
+Backflow requests are processed on the 1st of every month. 
+
+Prefix the with `[Backfill]` indicating the following: 
+
+* Provider
+* Metric(s) and/or "All"
+* Reason
+
 ## Requirements
 - Python 3.12+
 - `pip` and `venv`
