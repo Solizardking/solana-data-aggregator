@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Solana Data Aggregator</title>
+  <style>
+    :root {
+      --bg: #0a0b0f;
+      --surface: #13151c;
+      --border: #1e2130;
+      --accent: #9945ff;
+      --accent2: #14f195;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --radius: 10px;
+      --font: 'Inter', system-ui, sans-serif;
+      --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+    }
+    header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+    header span { color: var(--muted); font-size: 13px; margin-left: auto; }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 0;
+      height: calc(100vh - 69px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    .date-group { display: flex; flex-direction: column; gap: 8px; }
+    .date-group label { font-size: 12px; color: var(--muted); }
+    .date-group input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-family: var(--mono);
+      width: 100%;
+    }
+    .date-group input:focus { outline: none; border-color: var(--accent); }
+
+    .provider-list { display: flex; flex-direction: column; gap: 6px; }
+    .provider-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .provider-item:hover { background: rgba(255,255,255,0.04); }
+    .provider-item input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
+    .provider-name { font-size: 13px; font-weight: 500; flex: 1; }
+    .provider-badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .badge-ok { background: rgba(20,241,149,0.12); color: var(--accent2); }
+    .badge-key { background: rgba(245,158,11,0.12); color: var(--warning); }
+    .badge-err { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+    .run-btn {
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 12px;
+      width: 100%;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .run-btn:hover { opacity: 0.9; }
+    .run-btn:active { transform: scale(0.98); }
+    .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Main ── */
+    main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .toolbar-title { font-size: 14px; font-weight: 500; flex: 1; }
+    .toolbar-meta { font-size: 12px; color: var(--muted); }
+    .export-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 12px;
+      transition: border-color 0.15s, background 0.15s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .export-btn:hover { border-color: var(--accent); background: rgba(153,69,255,0.08); }
+    .export-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .tab {
+      padding: 10px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: var(--muted);
+      transition: color 0.15s;
+      user-select: none;
+    }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab:hover:not(.active) { color: var(--text); }
+
+    /* ── Content ── */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    /* ── Empty / loading ── */
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: var(--muted);
+    }
+    .empty-icon { font-size: 48px; opacity: 0.3; }
+    .empty h2 { font-size: 16px; font-weight: 500; }
+    .empty p { font-size: 13px; }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results table ── */
+    .provider-section { margin-bottom: 28px; }
+    .provider-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .provider-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .provider-header .count {
+      font-size: 11px;
+      background: rgba(153,69,255,0.15);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 99px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-family: var(--mono);
+    }
+    td.metric-name {
+      font-family: var(--font);
+      color: var(--text);
+    }
+    td.metric-date { color: var(--muted); font-size: 12px; }
+    td.metric-value { color: var(--accent2); font-weight: 500; }
+    td.metric-error { color: var(--danger); font-size: 12px; font-family: var(--font); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── JSON view ── */
+    .json-view {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #a8b4c8;
+    }
+    .json-key { color: #79c0ff; }
+    .json-string { color: #a5d6ff; }
+    .json-number { color: var(--accent2); }
+    .json-bool { color: var(--accent); }
+    .json-null { color: var(--muted); }
+
+    /* ── Meta bar ── */
+    .meta-bar {
+      display: flex;
+      gap: 20px;
+      padding: 12px 24px;
+      background: rgba(153,69,255,0.05);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+    }
+    .meta-item { display: flex; gap: 6px; align-items: center; }
+    .meta-item .label { color: var(--muted); }
+    .meta-item .value { color: var(--accent2); font-family: var(--mono); }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 18px;
+      font-size: 13px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      z-index: 999;
+      transition: opacity 0.3s, transform 0.3s;
+      transform: translateY(0);
+    }
+    .toast.hide { opacity: 0; transform: translateY(10px); }
+    .toast.success { border-color: var(--accent2); }
+    .toast.error { border-color: var(--danger); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">◎</div>
+  <h1>Solana Data Aggregator</h1>
+  <span id="status-text">Ready</span>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <!-- Date range -->
+    <div>
+      <div class="section-label">Date Range</div>
+      <div class="date-group">
+        <label>Start</label>
+        <input type="date" id="start-date" />
+        <label>End</label>
+        <input type="date" id="end-date" />
+      </div>
+    </div>
+
+    <!-- Providers -->
+    <div>
+      <div class="section-label">Providers</div>
+      <div class="provider-list" id="provider-list">
+        <div style="color:var(--muted);font-size:13px">Loading…</div>
+      </div>
+    </div>
+
+    <button class="run-btn" id="run-btn" onclick="runProviders()">
+      ▶ Run
+    </button>
+  </aside>
+
+  <!-- Main panel -->
+  <main>
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <span class="toolbar-title">Results</span>
+      <span class="toolbar-meta" id="toolbar-meta"></span>
+      <button class="export-btn" id="export-json" onclick="exportData('json')" disabled>
+        ↓ JSON
+      </button>
+      <button class="export-btn" id="export-csv" onclick="exportData('csv')" disabled>
+        ↓ CSV
+      </button>
+      <button class="export-btn" id="export-jsonl" onclick="exportData('jsonl')" disabled>
+        ↓ JSONL
+      </button>
+    </div>
+
+    <!-- Meta bar (hidden until run) -->
+    <div class="meta-bar" id="meta-bar" style="display:none">
+      <div class="meta-item"><span class="label">Ran at</span><span class="value" id="meta-ran-at">—</span></div>
+      <div class="meta-item"><span class="label">Range</span><span class="value" id="meta-range">—</span></div>
+      <div class="meta-item"><span class="label">Providers</span><span class="value" id="meta-providers">—</span></div>
+      <div class="meta-item"><span class="label">Skipped</span><span class="value" id="meta-skipped">—</span></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('table', this)">Table</div>
+      <div class="tab" onclick="switchTab('json', this)">JSON</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content" id="content">
+      <div class="empty">
+        <div class="empty-icon">◎</div>
+        <h2>No data yet</h2>
+        <p>Select providers and click Run to fetch metrics.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Toast -->
+<div class="toast hide" id="toast"></div>
+
+<script>
+  let lastResults = null;
+  let currentTab = 'table';
+
+  // ── Init ──
+  const today = new Date().toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  document.getElementById('start-date').value = weekAgo;
+  document.getElementById('end-date').value = today;
+
+  loadProviders();
+
+  // ── Load provider list ──
+  async function loadProviders() {
+    try {
+      const res = await fetch('/api/providers');
+      const providers = await res.json();
+      const list = document.getElementById('provider-list');
+      list.innerHTML = '';
+      providers.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'provider-item';
+        const badgeClass = p.available ? 'badge-ok' : 'badge-key';
+        const badgeText = p.available ? (p.env_var ? 'API key set' : 'built-in') : 'no key';
+        div.innerHTML = `
+          <input type="checkbox" id="p-${p.name}" value="${p.name}" ${p.available ? 'checked' : ''} />
+          <label class="provider-name" for="p-${p.name}">${p.name}</label>
+          <span class="provider-badge ${badgeClass}">${badgeText}</span>
+        `;
+        list.appendChild(div);
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // ── Run ──
+  async function runProviders() {
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.textContent = '⟳ Running…';
+    document.getElementById('status-text').textContent = 'Running…';
+    document.getElementById('content').innerHTML = '<div class="empty"><div class="spinner"></div><p>Fetching metrics…</p></div>';
+
+    const checked = [...document.querySelectorAll('#provider-list input:checked')].map(i => i.value);
+    const start = document.getElementById('start-date').value;
+    const end = document.getElementById('end-date').value;
+
+    try {
+      const res = await fetch('/api/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providers: checked, start_date: start, end_date: end }),
+      });
+      const data = await res.json();
+      lastResults = data;
+      renderResults(data);
+      updateExportButtons(true);
+      updateMeta(data.meta);
+      toast(`Ran ${data.meta.providers_run.length} provider(s)`, 'success');
+    } catch (e) {
+      toast('Run failed: ' + e.message, 'error');
+      document.getElementById('content').innerHTML = '<div class="empty"><div class="empty-icon">⚠</div><h2>Run failed</h2><p>' + e.message + '</p></div>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '▶ Run';
+      document.getElementById('status-text').textContent = 'Ready';
+    }
+  }
+
+  // ── Render ──
+  function renderResults(data) {
+    if (currentTab === 'table') renderTable(data.results);
+    else renderJson(data);
+  }
+
+  function renderTable(results) {
+    const content = document.getElementById('content');
+    if (!results || !Object.keys(results).length) {
+      content.innerHTML = '<div class="empty"><div class="empty-icon">∅</div><h2>No results</h2></div>';
+      return;
+    }
+
+    let html = '';
+    for (const [provider, metrics] of Object.entries(results)) {
+      if (typeof metrics !== 'object') continue;
+
+      // Flatten rows for this provider
+      const rows = [];
+      for (const [metric, data] of Object.entries(metrics)) {
+        if (Array.isArray(data)) {
+          data.forEach(r => rows.push({ metric, date: r.date, value: r.value, error: null }));
+          if (!data.length) rows.push({ metric, date: '—', value: '—', error: null });
+        } else if (data && data.error) {
+          rows.push({ metric, date: '—', value: '—', error: data.error });
+        }
+      }
+
+      const successCount = rows.filter(r => !r.error && r.value !== '—').length;
+      html += `
+        <div class="provider-section">
+          <div class="provider-header">
+            <h3>${provider}</h3>
+            <span class="count">${successCount} metrics</span>
+          </div>
+          <table>
+            <thead><tr><th>Metric</th><th>Date</th><th>Value</th></tr></thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td class="metric-name">${r.metric}</td>
+                  <td class="metric-date">${r.date ?? '—'}</td>
+                  <td class="${r.error ? 'metric-error' : 'metric-value'}">${r.error ? r.error : formatValue(r.metric, r.value)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+    content.innerHTML = html;
+  }
+
+  function formatValue(metric, value) {
+    if (value === '—' || value === null || value === undefined) return '—';
+    const n = parseFloat(value);
+    if (isNaN(n)) return value;
+    if (metric.includes('_usd') || metric.includes('price')) return '$' + n.toFixed(4);
+    if (metric.includes('_bps')) return n.toFixed(4) + ' bps';
+    if (metric.includes('confidence')) return (n * 100).toFixed(1) + '%';
+    if (Number.isInteger(n) || n > 100) return n.toLocaleString();
+    return n.toFixed(6);
+  }
+
+  function renderJson(data) {
+    const content = document.getElementById('content');
+    const raw = JSON.stringify(data, null, 2);
+    const colored = raw
+      .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+      .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+      .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+      .replace(/: (true|false)/g, ': <span class="json-bool">$1</span>')
+      .replace(/: (null)/g, ': <span class="json-null">$1</span>');
+    content.innerHTML = `<div class="json-view">${colored}</div>`;
+  }
+
+  // ── Tabs ──
+  function switchTab(tab, el) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    if (lastResults) renderResults(lastResults);
+  }
+
+  // ── Meta ──
+  function updateMeta(meta) {
+    document.getElementById('meta-bar').style.display = 'flex';
+    document.getElementById('meta-ran-at').textContent = new Date(meta.ran_at).toLocaleTimeString();
+    document.getElementById('meta-range').textContent = `${meta.start_date} → ${meta.end_date}`;
+    document.getElementById('meta-providers').textContent = meta.providers_run.join(', ') || '—';
+    document.getElementById('meta-skipped').textContent = meta.skipped.length ? meta.skipped.join(', ') : 'none';
+    document.getElementById('toolbar-meta').textContent = `Last run: ${new Date(meta.ran_at).toLocaleString()}`;
+  }
+
+  // ── Export ──
+  function updateExportButtons(enabled) {
+    ['export-json', 'export-csv', 'export-jsonl'].forEach(id => {
+      document.getElementById(id).disabled = !enabled;
+    });
+  }
+
+  function exportData(format) {
+    window.location.href = `/api/export/${format}`;
+  }
+
+  // ── Toast ──
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = `toast ${type}`;
+    setTimeout(() => { el.className = `toast ${type} hide`; }, 3000);
+  }
+</script>
+</body>
+</html>
