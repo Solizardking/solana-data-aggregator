@@ -9,7 +9,7 @@ from unittest.mock import mock_open, patch
 import pytest
 
 from metrics.dataset import DatasetMetric, DatasetMetricType
-from providers.clawd import Clawd, _MANIFEST_DIR, _MANIFEST_FILES
+from providers.clawd import Clawd, _MANIFEST_DIR, _MANIFEST_FILES, _JUPITER_TXNS_FILE, _SIGNAL_FILE
 
 
 # ---------------------------------------------------------------------------
@@ -49,12 +49,28 @@ _ALL_MANIFESTS = {
     "nvidia_trading_factory": NVIDIA_TRADING_FACTORY_MANIFEST,
 }
 
+_JUPITER_DATA = {
+    "date": "2026-06-19",
+    "sol_price_usd": 68.96,
+    "quote_count": 500.0,
+    "avg_price_impact_bps": 0.03,
+    "routes_count": 5.0,
+}
+
+_SIGNAL_DATA = {
+    "date": "2026-06-20",
+    "avg_confidence": 0.0,
+    "markets_count": 3.0,
+}
+
 
 @pytest.fixture()
 def provider(tmp_path: Path) -> Clawd:
-    """Return a Clawd provider with manifests pre-loaded (bypasses filesystem)."""
+    """Return a Clawd provider with all data sources pre-loaded."""
     p = Clawd()
     p._manifests = dict(_ALL_MANIFESTS)
+    p._jupiter = dict(_JUPITER_DATA)
+    p._signal = dict(_SIGNAL_DATA)
     return p
 
 
@@ -153,6 +169,69 @@ class TestGetMetric:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Jupiter DEX metrics
+# ---------------------------------------------------------------------------
+
+
+class TestJupiterMetrics:
+    def test_sol_price_usd(self, provider: Clawd) -> None:
+        rows = provider.fetch_rows("jupiter_sol_price_usd", "2026-06-01", "2026-06-30")
+        assert len(rows) == 1
+        assert abs(rows[0]["value"] - 68.96) < 0.01
+        assert rows[0]["date"] == "2026-06-19"
+
+    def test_quote_count(self, provider: Clawd) -> None:
+        rows = provider.fetch_rows("jupiter_quote_count", "2026-06-01", "2026-06-30")
+        assert rows[0]["value"] == 500.0
+
+    def test_avg_price_impact_bps(self, provider: Clawd) -> None:
+        rows = provider.fetch_rows("jupiter_avg_price_impact_bps", "2026-06-01", "2026-06-30")
+        assert rows[0]["value"] == pytest.approx(0.03, abs=1e-9)
+
+    def test_routes_count(self, provider: Clawd) -> None:
+        rows = provider.fetch_rows("jupiter_routes_count", "2026-06-01", "2026-06-30")
+        assert rows[0]["value"] == 5.0
+
+    def test_out_of_range(self, provider: Clawd) -> None:
+        rows = provider.fetch_rows("jupiter_sol_price_usd", "2025-01-01", "2025-06-30")
+        assert rows == []
+
+    def test_get_metric_sol_price(self, provider: Clawd) -> None:
+        m = provider.get_metric("jupiter_sol_price_usd", "2026-06-19")
+        assert isinstance(m, DatasetMetric)
+        assert m.metric_type == DatasetMetricType.JUPITER_SOL_PRICE_USD
+        assert m.unit == "USD"
+
+
+# ---------------------------------------------------------------------------
+# Signal metrics
+# ---------------------------------------------------------------------------
+
+
+class TestSignalMetrics:
+    def test_avg_confidence(self, provider: Clawd) -> None:
+        rows = provider.fetch_rows("signal_avg_confidence", "2026-06-01", "2026-06-30")
+        assert len(rows) == 1
+        assert rows[0]["value"] == 0.0
+        assert rows[0]["date"] == "2026-06-20"
+
+    def test_markets_count(self, provider: Clawd) -> None:
+        rows = provider.fetch_rows("signal_markets_count", "2026-06-01", "2026-06-30")
+        assert rows[0]["value"] == 3.0
+
+    def test_get_metric_markets(self, provider: Clawd) -> None:
+        m = provider.get_metric("signal_markets_count", "2026-06-20")
+        assert isinstance(m, DatasetMetric)
+        assert m.metric_type == DatasetMetricType.SIGNAL_MARKETS_COUNT
+        assert m.unit == "Count"
+
+
+# ---------------------------------------------------------------------------
+# Bundled data files on disk
+# ---------------------------------------------------------------------------
+
+
 class TestManifestFiles:
     def test_manifest_dir_exists(self) -> None:
         assert _MANIFEST_DIR.is_dir(), f"{_MANIFEST_DIR} not found — run integration setup"
@@ -167,3 +246,22 @@ class TestManifestFiles:
         path = _MANIFEST_FILES[key]
         data = json.loads(path.read_text())
         assert isinstance(data, dict)
+
+    def test_jupiter_txns_file_exists(self) -> None:
+        assert _JUPITER_TXNS_FILE.is_file(), f"Missing: {_JUPITER_TXNS_FILE}"
+
+    def test_signal_file_exists(self) -> None:
+        assert _SIGNAL_FILE.is_file(), f"Missing: {_SIGNAL_FILE}"
+
+    def test_jupiter_txns_parses_live(self) -> None:
+        from providers.clawd import _parse_jupiter_txns
+        data = _parse_jupiter_txns()
+        assert "sol_price_usd" in data
+        assert data["sol_price_usd"] > 0
+        assert data["quote_count"] >= 400  # we know ~500 records
+
+    def test_signal_report_parses_live(self) -> None:
+        from providers.clawd import _parse_signal_report
+        data = _parse_signal_report()
+        assert "markets_count" in data
+        assert data["markets_count"] >= 1
