@@ -1,0 +1,35 @@
+{
+  "name": "Solana Transaction Foundation CPT",
+  "repo_id": "solanaclawd/solana-tx-foundation-cpt",
+  "generated_at": "2026-06-21T18:10:26+00:00",
+  "source_jsonl": "<local-path-redacted>",
+  "source_sha256": "11bbf408781a9ae877605b7eedeb2a08376209d2576a507a60ea384246b68e9d",
+  "num_examples": 19542,
+  "splits": {
+    "train": 17587,
+    "eval": 977,
+    "test": 978
+  },
+  "processed_dir": "<local-path-redacted>",
+  "processed_files": {
+    "train": "<local-path-redacted>",
+    "eval": "<local-path-redacted>",
+    "test": "<local-path-redacted>"
+  },
+  "schema": {
+    "text": "NeMo CPT record, one Solana transaction context per row"
+  },
+  "config": "<local-path-redacted>",
+  "training_model": "solanaclawd/solana-tx-foundation-1.5b",
+  "local_model_path": "<local-path-redacted>",
+  "local_model_present": false,
+  "eval_output": "<local-path-redacted>",
+  "eval_present": false,
+  "safety": {
+    "secrets_required": [
+      "HF_TOKEN only for Hub upload",
+      "NVIDIA_API_KEY only for NIM/NVCF calls"
+    ],
+    "private_key_policy": "Never store wallet keys, API tokens, or Google ADC files in dataset artifacts."
+  }
+}

@@ -24,6 +24,7 @@ from providers.allium import Allium
 from providers.artemis import Artemis
 from providers.base import BaseProvider
 from providers.blockworks import Blockworks
+from providers.clawd import Clawd
 from providers.defillama import DefiLlama
 from providers.dune import Dune
 from providers.rwa import Rwa
@@ -42,6 +43,7 @@ PROVIDER_REGISTRY: List[tuple[str, Type[BaseProvider], Optional[str]]] = [
     ("defillama", DefiLlama, "DEFILLAMA_API_KEY"),
     ("dune", Dune, "DUNE_API_KEY"),
     ("rwa", Rwa, "RWA_API_KEY"),
+    ("clawd", Clawd, None),
     ("stakewiz", Stakewiz, None),
     ("token_terminal", TokenTerminal, "TOKEN_TERMINAL_API_KEY"),
     ("validators_app", ValidatorsApp, "VALIDATORS_APP_API_TOKEN"),
